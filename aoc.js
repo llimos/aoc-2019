@@ -45,6 +45,7 @@ class IntcodeComputer extends Duplex {
         this.input = initialInput || [];
         this.id = id;
         this.paused = true;
+        this.output = [];
     }
 
     _write(chunk, encoding, callback) {
@@ -93,6 +94,8 @@ class IntcodeComputer extends Duplex {
                 // If there's no input, pause the machine until we get some
                 if (this.input.length === 0) {
                     this.paused = true;
+                    // Let the caller know we're waiting for input
+                    this.push('');
                     break;
                 }
                 // console.log(this.id, 'Input', this.input[0]);
@@ -639,11 +642,16 @@ class Moon {
         this.pos.z += this.vel.z;
     }
 
+    serializeAxis(axis) {
+        return `${this.pos[axis]}:${this.vel[axis]}`;
+    }
+
     getEnergy() {
         return (Math.abs(this.pos.x) + Math.abs(this.pos.y) + Math.abs(this.pos.z)) * (Math.abs(this.vel.x) + Math.abs(this.vel.y) + Math.abs(this.vel.z));
     }
 }
 
+const axes = ['x','y','z'];
 class System {
     constructor(moons) {
         this.moons = moons;
@@ -656,40 +664,28 @@ class System {
     }
 
     doStep() {
-        for (let i = 0; i < moons.length; i++) {
-            for (let j = i + 1; j < moons.length; j++) {
-                
+        for (const axis of axes) {
+            for (const [moon1, moon2] of this.pairs) {
+                if (moon1.pos[axis] > moon2.pos[axis]) {
+                    moon1.vel[axis]--;
+                    moon2.vel[axis]++;
+                } else if (moon1.pos[axis] < moon2.pos[axis]) {
+                    moon1.vel[axis]++;
+                    moon2.vel[axis]--;
+                }
             }
-        }
-        for (const axis of ['x','y','z']) {
             for (const moon of this.moons) {
-            // Apply gravity by counting the moons that are > - < the position
-            // Apply velocity at the same time
-            const velocity = this.moons.reduce((vel, otherMoon) => moon.vel + (moon.vel[axis] > ,moon.vel)
-            
-
+                moon.pos[axis] += moon.vel[axis];
             }
         }
-        // for (const [moon1, moon2] of this.pairs) {
-        //     for (const axis of ['x','y','z']) {
-        //         if (moon1.pos[axis] > moon2.pos[axis]) {
-        //             moon1.vel[axis]--;
-        //             moon2.vel[axis]++;
-        //         } else if (moon1.pos[axis] < moon2.pos[axis]) {
-        //             moon1.vel[axis]++;
-        //             moon2.vel[axis]--;
-        //         }
-        //     }
-        // }
-        // for (const moon of this.moons) {
-        //     moon.pos.x += moon.vel.x;
-        //     moon.pos.y += moon.vel.y;
-        //     moon.pos.z += moon.vel.z;
-        // }
     }
 
     getTotalEnergy() {
         return this.moons.reduce((total, moon) => total + moon.getEnergy(), 0);
+    }
+
+    serializeAxis(axis) {
+        return this.moons.map(moon => moon.serializeAxis(axis)).join('|');
     }
 }
 
@@ -700,100 +696,256 @@ const system = new System([
     // new Moon(4, -8, 8),
     // new Moon(3, 5, -1)
 
-    new Moon(-8, -10, 0),
-    new Moon(5, 5, 10),
-    new Moon(2, -7, 3),
-    new Moon(9, -8, -3)
+    // new Moon(-8, -10, 0),
+    // new Moon(5, 5, 10),
+    // new Moon(2, -7, 3),
+    // new Moon(9, -8, -3)
 
-    // new Moon(-3, 15, -11),
-    // new Moon(3, 13, -19),
-    // new Moon(-13, 18, -2),
-    // new Moon(6, 0, -1)
+    new Moon(-3, 15, -11),
+    new Moon(3, 13, -19),
+    new Moon(-13, 18, -2),
+    new Moon(6, 0, -1)
 ]);
 
-// const steps = 100;
-// for (let i = 0; i < steps; i++) {
-//     // console.log(i, system.moons);
-//     system.doStep();
-// }
-// // console.log(steps, moons);
-// console.log('Total Energy', system.getTotalEnergy());
+function day12(){
+    const steps = 100;
+    for (let i = 0; i < steps; i++) {
+        // console.log(i, system.moons);
+        system.doStep();
+    }
+    // console.log(steps, moons);
+    console.log('Total Energy', system.getTotalEnergy());
+}
 
 // Day 12 part 2
 
-// 2 copies of the system
-// Each has a visitor. One visits 2 states for every 1 state of the other
-// On each step of the faster one, check if it matches the slower one. If it does, that's the answer
-const system2 = new System([
-    // new Moon(-1, 0, 2),
-    // new Moon(2, -10, -7),
-    // new Moon(4, -8, 8),
-    // new Moon(3, 5, -1)
+function day12p2() {
 
-    new Moon(-8, -10, 0),
-    new Moon(5, 5, 10),
-    new Moon(2, -7, 3),
-    new Moon(9, -8, -3)
+    const states = {
+        x: new Map,
+        y: new Map,
+        z: new Map
+    };
+    let start = {}, loopSize = {};
+    let step = 0;
+    while (!loopSize.x || !loopSize.y || !loopSize.z) {
+        // Check if we've found a loop
+        for (let axis of axes) {
+            if (loopSize[axis]) continue;
+            const state = system.serializeAxis(axis);
+            if (states[axis].has(state)) {
+                start[axis] = states[axis].get(state);
+                loopSize[axis] = step - start[axis];
+                console.log('Found loop for', axis, 'starting at', start[axis], 'size', loopSize[axis]);
+            } else {
+                states[axis].set(state, step);
+            }
+        }
 
-    // new Moon(-3, 15, -11),
-    // new Moon(3, 13, -19),
-    // new Moon(-13, 18, -2),
-    // new Moon(6, 0, -1)
-]);
+        // Progress the system
+        step++;
+        system.doStep();
+    }
 
-let i = 0;
-const start = Date.now();
-while (true) {
-    system.doStep();
-    system2.doStep();
-    system2.doStep();
-    // if (JSON.stringify(system.moons) === JSON.stringify(system2.moons)) {
-    //     console.log('Found loop');
-    //     break;
-    // }
-    if (++i % 1000000 === 0) {
-        console.log(Date.now() - start, i, 'steps')
+    // We have the loop sizes and start points
+    // Now we find when they coincide
+    // The first point where they coincide is after all the start points
+    const firstCoincidence = Math.max(start.x, start.y, start.z);
+    // Overall loop size is the lowest common multiple of the loop sizes
+    let totalLoopSize = lcm([loopSize.x, loopSize.y, loopSize.z]);
+    // This is where the loops coincide. The first repeating element
+    // is the beginning of the smallest loop
+    // totalLoopSize -= (Math.min(loopSize.x, loopSize.y, loopSize.z) - 1);
+    // and remove the starting bit
+    totalLoopSize -= firstCoincidence;
+    console.log(totalLoopSize);
+}
+
+function lcm(values) {
+    // First, factorize the values
+    const primeFactors = values.map(factorize);
+    console.log(primeFactors)
+
+    // Any prime factors that exist in more than one set can be removed (once)
+    for (let i=0; i<primeFactors.length; i++) {
+        for (let j=i+1; j<primeFactors.length; j++) {
+            for (value of primeFactors[i]) {
+                const pos = primeFactors[j].indexOf(value);
+                if (pos > -1) {
+                    primeFactors[j].splice(pos, 1);
+                }
+            }
+        }
+    }
+    console.log(primeFactors)
+    return primeFactors.flat().reduce((acc,fac) => acc * fac, 1);
+}
+
+function factorize(num) {
+    for (let i=2; i<num/3; i++) {
+        if (num % i === 0) {
+            return [...factorize(i), ...factorize(num / i)];
+        }
+    }
+    // It's already prime
+    return [num];
+}
+
+
+
+// Day 13
+
+class Game {
+    constructor(intcode) {
+        this.computer = new IntcodeComputer(intcode);
+        this.iterator = this.computer[Symbol.asyncIterator]();
+        this.gameBoard = [];
+        this.score = 0;
+        this.joystickPosition = 0;
+    }
+
+    printBoard() {
+        const symbol = [' ', '#', '*', '=', 'O'];
+        return this.gameBoard.map(row => row.map(cell => symbol[cell]).join('')).join('\n');
+    }
+
+    async step() {
+        this.computer.write(this.joystickPosition);
+
+        while(true) {
+
+            const {value: x, done} = await this.iterator.next();
+            if (done) {
+                return true; // Finished the game
+            }
+            if (x === '') { // Input needed
+                return false;
+            }
+            const {value: y} = await this.iterator.next();
+            const {value: type} = await this.iterator.next();
+            
+            if (x === -1 && y === 0) {
+                this.score = type;
+            } else {
+                this.gameBoard[y] = this.gameBoard[y] || [];
+                this.gameBoard[y][x] = type;
+
+                // If it's the ball or paddle, cache the position
+                if (type === 4) {
+                    // if (this.ballX)
+                        this.ballXdirection = Math.sign(x - this.ballX);
+                    // if (this.ballY)
+                        this.ballYdirection = Math.sign(y - this.ballY);
+                    this.ballX = x;
+                    this.ballY = y;
+                }
+                else if (type === 3) {
+                    this.paddleX = x;
+                    this.paddleY = y;
+                }
+            }
+        }
     }
 }
-process.exit();
 
-let step = 0;
-const initial = JSON.stringify(system2.moons);
-while(true) {
-    // If we're back at the beginning, reset the step counter
-    if (JSON.stringify(system2.moons) === initial) {
-        step = 0;
+
+function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+(async function day13(){
+    const intcode = [1,380,379,385,1008,2415,504308,381,1005,381,12,99,109,2416,1101,0,0,383,1102,1,0,382,20101,0,382,1,20102,1,383,2,21102,1,37,0,1106,0,578,4,382,4,383,204,1,1001,382,1,382,1007,382,37,381,1005,381,22,1001,383,1,383,1007,383,24,381,1005,381,18,1006,385,69,99,104,-1,104,0,4,386,3,384,1007,384,0,381,1005,381,94,107,0,384,381,1005,381,108,1105,1,161,107,1,392,381,1006,381,161,1101,-1,0,384,1105,1,119,1007,392,35,381,1006,381,161,1101,0,1,384,20102,1,392,1,21102,22,1,2,21102,1,0,3,21101,0,138,0,1106,0,549,1,392,384,392,21002,392,1,1,21102,1,22,2,21102,1,3,3,21102,1,161,0,1105,1,549,1102,0,1,384,20001,388,390,1,20101,0,389,2,21101,0,180,0,1106,0,578,1206,1,213,1208,1,2,381,1006,381,205,20001,388,390,1,21002,389,1,2,21102,205,1,0,1105,1,393,1002,390,-1,390,1102,1,1,384,21002,388,1,1,20001,389,391,2,21102,228,1,0,1106,0,578,1206,1,261,1208,1,2,381,1006,381,253,20101,0,388,1,20001,389,391,2,21101,253,0,0,1105,1,393,1002,391,-1,391,1102,1,1,384,1005,384,161,20001,388,390,1,20001,389,391,2,21101,279,0,0,1106,0,578,1206,1,316,1208,1,2,381,1006,381,304,20001,388,390,1,20001,389,391,2,21101,0,304,0,1106,0,393,1002,390,-1,390,1002,391,-1,391,1102,1,1,384,1005,384,161,21001,388,0,1,21001,389,0,2,21101,0,0,3,21102,1,338,0,1105,1,549,1,388,390,388,1,389,391,389,20102,1,388,1,20102,1,389,2,21101,0,4,3,21101,0,365,0,1105,1,549,1007,389,23,381,1005,381,75,104,-1,104,0,104,0,99,0,1,0,0,0,0,0,0,286,16,19,1,1,18,109,3,22102,1,-2,1,22102,1,-1,2,21101,0,0,3,21101,0,414,0,1106,0,549,21202,-2,1,1,22101,0,-1,2,21102,429,1,0,1105,1,601,2101,0,1,435,1,386,0,386,104,-1,104,0,4,386,1001,387,-1,387,1005,387,451,99,109,-3,2106,0,0,109,8,22202,-7,-6,-3,22201,-3,-5,-3,21202,-4,64,-2,2207,-3,-2,381,1005,381,492,21202,-2,-1,-1,22201,-3,-1,-3,2207,-3,-2,381,1006,381,481,21202,-4,8,-2,2207,-3,-2,381,1005,381,518,21202,-2,-1,-1,22201,-3,-1,-3,2207,-3,-2,381,1006,381,507,2207,-3,-4,381,1005,381,540,21202,-4,-1,-1,22201,-3,-1,-3,2207,-3,-4,381,1006,381,529,21201,-3,0,-7,109,-8,2105,1,0,109,4,1202,-2,37,566,201,-3,566,566,101,639,566,566,2102,1,-1,0,204,-3,204,-2,204,-1,109,-4,2106,0,0,109,3,1202,-1,37,594,201,-2,594,594,101,639,594,594,20101,0,0,-2,109,-3,2106,0,0,109,3,22102,24,-2,1,22201,1,-1,1,21101,449,0,2,21102,721,1,3,21101,888,0,4,21102,1,630,0,1105,1,456,21201,1,1527,-2,109,-3,2106,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,2,2,0,2,2,2,0,2,2,2,0,2,2,2,2,0,0,2,2,0,2,0,0,2,0,2,2,2,2,0,2,0,0,1,1,0,0,2,0,0,0,2,0,2,2,0,0,0,2,2,2,0,0,0,2,2,2,0,2,2,0,0,0,0,0,0,0,2,0,0,1,1,0,0,2,0,2,0,2,0,2,0,2,2,0,2,0,2,0,2,2,2,0,0,2,2,2,0,2,0,2,2,2,2,0,0,0,1,1,0,0,2,0,0,0,0,2,0,0,0,2,0,0,2,2,2,2,2,2,2,0,0,0,0,2,2,2,2,2,0,2,2,2,0,1,1,0,2,2,2,0,0,2,2,2,2,2,2,0,2,0,0,0,2,0,0,2,2,2,0,2,0,2,0,2,0,0,2,2,2,0,1,1,0,0,2,2,2,2,0,2,0,2,0,0,2,0,2,2,2,2,2,0,2,0,2,2,0,2,0,2,2,2,0,2,2,0,0,1,1,0,0,0,0,2,2,2,2,2,0,0,2,0,0,0,0,2,0,2,2,0,2,2,2,2,2,0,2,2,0,0,0,2,2,0,1,1,0,2,0,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,2,0,2,0,2,2,0,2,0,2,0,0,0,0,0,0,1,1,0,0,0,2,2,0,0,2,0,0,2,2,2,2,2,0,0,2,2,2,2,0,2,0,0,0,2,2,2,0,2,2,2,2,0,1,1,0,0,0,0,0,2,0,2,2,2,0,0,2,2,2,0,2,2,2,0,0,2,2,0,2,2,2,2,0,0,2,2,2,0,0,1,1,0,0,2,0,2,2,2,2,0,0,0,0,2,0,0,0,2,0,0,0,0,2,0,0,0,0,2,2,0,0,0,2,2,2,0,1,1,0,0,2,0,2,2,2,2,0,0,0,0,0,2,2,2,2,2,2,0,0,2,2,0,2,0,0,2,2,2,2,2,2,0,0,1,1,0,0,2,0,2,0,0,0,0,0,0,2,0,0,0,0,0,0,0,2,2,2,2,0,2,0,2,2,2,2,0,2,0,2,0,1,1,0,0,2,2,2,0,2,2,2,2,0,2,0,2,0,2,0,0,0,0,0,0,2,2,0,2,2,2,2,0,0,2,2,0,0,1,1,0,0,0,2,0,2,2,2,0,0,2,2,2,0,2,0,0,2,2,2,0,2,0,2,2,0,2,2,2,2,0,0,0,0,0,1,1,0,2,2,0,2,2,0,2,0,2,2,2,2,0,2,2,0,2,2,2,0,2,0,0,0,2,0,2,0,0,0,0,0,2,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,72,24,61,53,70,95,17,71,27,25,75,75,9,41,47,87,93,47,92,11,93,87,16,9,94,89,5,46,23,64,39,44,23,93,27,28,10,82,54,70,26,84,86,88,64,20,6,8,8,27,46,80,6,57,15,35,55,86,30,72,88,50,49,11,31,76,89,50,24,13,71,45,35,46,57,14,84,36,1,41,48,87,67,92,83,28,41,7,33,60,66,16,46,42,49,47,53,27,60,84,63,32,23,17,67,61,56,7,31,68,43,50,37,36,56,6,65,35,9,56,15,32,64,68,7,52,30,15,55,71,57,97,31,60,37,35,85,96,59,14,83,76,47,71,65,39,37,22,77,90,60,38,29,72,11,49,40,20,26,19,80,83,58,67,50,94,79,62,86,57,76,44,36,37,55,67,6,26,34,63,80,33,64,45,39,93,70,26,4,71,79,71,21,70,31,48,58,50,54,74,53,31,89,78,57,70,52,70,85,68,5,1,55,12,25,74,81,36,3,3,8,97,9,62,58,80,45,87,45,17,80,62,25,63,29,97,84,55,11,28,86,55,39,81,93,48,67,46,62,79,58,63,87,66,89,23,81,95,22,41,29,87,30,14,67,94,13,7,32,56,66,29,89,77,17,54,12,82,59,83,89,65,72,56,78,97,5,24,20,27,5,37,66,68,77,16,9,66,41,43,18,94,84,86,42,25,47,72,7,8,93,28,68,6,75,55,44,36,15,71,9,49,66,80,77,81,13,7,73,1,86,17,80,36,12,57,42,1,50,87,74,37,60,91,92,46,75,1,17,83,65,49,61,44,13,69,36,90,10,35,61,53,66,11,62,33,14,58,24,82,11,68,48,20,96,68,56,57,77,71,24,41,46,81,43,55,96,30,69,63,23,86,55,83,1,23,88,88,20,66,39,23,26,2,21,80,57,68,3,88,68,1,76,67,84,63,89,45,84,20,97,29,97,7,92,84,65,49,31,93,63,30,89,96,93,37,15,97,30,69,39,1,22,68,5,75,38,39,62,19,24,30,38,36,27,93,1,3,27,39,69,3,86,42,92,81,18,37,16,94,1,94,47,81,51,25,11,6,25,28,78,50,89,39,6,41,27,31,22,17,33,76,2,36,64,79,14,81,91,11,45,12,17,57,70,17,49,54,45,83,71,68,25,89,62,4,55,73,77,98,1,1,36,11,12,78,56,71,96,55,85,71,49,57,68,14,76,63,22,60,79,11,61,49,39,36,33,59,73,85,8,38,3,21,65,21,31,69,54,85,38,26,5,73,43,87,15,44,80,10,92,54,75,96,26,53,84,37,1,76,53,77,68,13,67,64,11,31,32,86,85,71,98,37,53,45,3,3,87,20,20,36,95,87,41,74,23,76,78,19,45,57,41,89,1,11,42,85,74,13,3,72,19,20,64,25,51,82,97,45,55,37,86,2,25,40,26,78,76,16,11,14,36,96,89,90,64,96,79,32,17,47,79,80,53,19,26,59,74,54,53,58,32,48,9,64,96,3,20,88,1,92,44,45,10,4,67,91,81,26,40,89,83,53,83,84,18,53,6,94,51,59,27,38,41,63,2,8,48,64,4,90,88,21,14,37,68,46,1,73,21,14,41,65,81,97,56,90,24,30,81,68,19,16,47,65,53,68,26,54,26,56,15,25,83,89,20,92,4,49,37,42,5,54,7,27,43,36,85,41,59,44,33,93,45,46,23,19,52,20,87,25,85,21,22,20,43,70,35,33,27,17,23,9,56,33,53,55,22,91,69,73,20,23,86,95,14,24,59,60,37,48,94,69,86,63,39,50,84,85,46,65,4,42,97,12,66,37,89,47,29,59,25,47,74,44,24,22,73,45,60,70,11,40,83,49,95,17,9,85,2,27,90,60,32,87,62,36,91,38,19,92,2,33,30,17,43,13,81,53,93,75,14,67,97,95,53,20,63,5,45,63,84,92,65,65,70,33,11,79,82,89,36,59,90,74,6,74,17,96,40,72,89,84,51,17,40,42,504308];
+    // const game = new Game([...intcode]);
+    // await game.step();
+    // console.log(game.gameBoard.flat().filter(t => t === 2).length);
+
+    // Part 2
+    intcode[0] = 2;
+    const game2 = new Game([...intcode]);
+    // Handle the joystick
+    const readline = require('readline');
+
+    readline.emitKeypressEvents(process.stdin);
+    process.stdin.setRawMode(true);
+
+    process.stdin.on('keypress', (str, key) => {
+        if (str === 'q') {
+            process.exit();
+        }
+        else if (str === 'z') {
+            game2.joystickPosition = -1;
+        }
+        else if (str === 'x') {
+            game2.joystickPosition = 0;
+        }
+        else if (str === 'c') {
+            game2.joystickPosition = 1;
+        }
+    });
+    // Run the game
+    while (!await game2.step()) {
+        console.log('Score', game2.score, 'Joystick position', game2.joystickPosition, 'Ball position', game2.ballX, game2.ballY);
+        console.log(game2.printBoard());
+
+        await wait(200);
+
+        // Predict where the ball will land when it reaches the paddle
+        let downXDirection, downXstart, downYstart;
+        if (game2.ballXdirection === -1) { // Going up
+            // Figure out where it's going to hit and which way it will bounce down
+            // If it ends up directly under a block, it bounces down the opposite way
+            // If it ends up with a rock in front and above, it bounces down the same way
+            for (let i=1; true; i++) {
+                const curX = game2.ballX + (i * game2.ballXdirection);
+                const curY = game2.ballY + (i * game2.ballXdirection);
+                if (game2.gameBoard[curY - 1][curX] > 0) {
+                    console.log('Going to hit', curX, curY - 1, 'Now at', curX, curY);
+                    // Bounce down the opposite way
+                    downXDirection = game2.ballXdirection;
+                    downXstart = curX;
+                    downYstart = curY;
+                    break;
+                } else if (game2.gameBoard[curY - 1][curX + game2.ballXdirection] > 0) {
+                    console.log('Going to hit', curX + game2.ballXdirection, curY - 1, 'Now at', curX, curY);
+                    downXDirection = game2.ballXdirection * -1;
+                    downXstart = curX;
+                    downYstart = curY;
+                    break;
+                }
+            }
+        } else {
+            downXDirection = game2.ballXdirection;
+            downXstart = game2.ballX;
+            downYstart = game2.ballY;
+        }
+        // Going down
+        // How many steps away is it
+        const ticks = game2.paddleY - downYstart - 1;
+        // Paddle needs to be the same number of ticks in the right direction
+        const paddleNeedsToBe = downXstart + (ticks * downXDirection);
+        game2.joystickPosition = Math.sign(paddleNeedsToBe - game2.paddleX);
     }
-    // Advance just the fast one
-    step++;
-    system2.doStep();
-    // Compare
-    if (JSON.stringify(system.moons) === JSON.stringify(system2.moons)) {
-        console.log(step);
-        break;
-    }
+    // const readline = require('readline'), rl = readline.createInterface({input: process.stdin, output: process.stdout});
+    // const iterator = rl[Symbol.asyncIterator]();
+    
+    // process.stdin.on('data', data => console.log('stdin', data));
+    // while (!await game2.step(joystickPosition)) {
+        // console.log('Score', game2.score);
+        // console.log(game2.printBoard());
+        // joystickPosition = parseInt((await iterator.next()).value, 10);
+    // }
 
-    // If we're back at the beginning, reset the step counter
-    if (JSON.stringify(system2.moons) === initial) {
-        step = 0;
-    }
-    // Advance both
-    step++;
-    system2.doStep();
-    system.doStep();
-    // Compare
-    if (JSON.stringify(system.moons) === JSON.stringify(system2.moons)) {
-        console.log(step);
-        break;
-    }
-};
-console.log('After loop');
-console.log(system.moons);
-console.log(system2.moons);
+})();
 
 
 
-function orbits() { return `21X)BWV
+
+
+
+
+
+function orbits() { 
+    return `21X)BWV
 YZJ)YLQ
 FQS)PZW
 R64)71F
@@ -3098,4 +3250,5 @@ GMW)KWL
 TZR)698
 RDG)VGN
 F1D)5X5
-3CT)6CH`;}
+3CT)6CH`;
+}
