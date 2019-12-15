@@ -897,7 +897,7 @@ function wait(ms) {
             // If it ends up with a rock in front and above, it bounces down the same way
             for (let i=1; true; i++) {
                 const curX = game2.ballX + (i * game2.ballXdirection);
-                const curY = game2.ballY + (i * game2.ballXdirection);
+                const curY = game2.ballY + (i * game2.ballYdirection);
                 if (game2.gameBoard[curY - 1][curX] > 0) {
                     console.log('Going to hit', curX, curY - 1, 'Now at', curX, curY);
                     // Bounce down the opposite way
