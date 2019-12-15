@@ -891,7 +891,7 @@ function wait(ms) {
 
         // Predict where the ball will land when it reaches the paddle
         let downXDirection, downXstart, downYstart;
-        if (game2.ballXdirection === -1) { // Going up
+        if (game2.ballYdirection === -1) { // Going up
             // Figure out where it's going to hit and which way it will bounce down
             // If it ends up directly under a block, it bounces down the opposite way
             // If it ends up with a rock in front and above, it bounces down the same way
