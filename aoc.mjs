@@ -1,3 +1,4 @@
+import IntcodeComputer, {compute} from './IntcodeComputer.mjs';
 
 function parse(path) {
     const moves = path.split(',');
@@ -28,123 +29,6 @@ function parse(path) {
         }
     });
     return points;
-}
-
-const {Duplex} = require('stream');
-
-class IntcodeComputer extends Duplex {
-
-    constructor(intcode, initialInput, id) {
-        super ({
-            decodeStrings: false,
-            objectMode: true
-        });
-        this.intcode = intcode;
-        this.pointer = 0;
-        this.relativeBase = 0;
-        this.input = initialInput || [];
-        this.id = id;
-        this.paused = true;
-        this.output = [];
-    }
-
-    _write(chunk, encoding, callback) {
-        this.input.push(chunk);
-        if (this.paused) {
-            this.run();
-        }
-        callback();
-    }
-
-    _read() {
-        this.run();
-    }
-
-    run() {
-        this.paused = false;
-        // console.log(this.id, 'Running');
-        while (this.intcode[this.pointer] !== 99) {
-            const opcode = this.intcode[this.pointer] % 100,
-            paramModes = Math.floor(this.intcode[this.pointer] / 100).toString().split('').map(p => parseInt(p)).reverse();
-            // console.log(this.intcode.join(''));
-            // console.log(this.pointer, opcode, paramModes, this.intcode.slice(this.pointer, this.pointer + 4).join(','));
-            const getLocation = paramPosition => {
-                const paramValue = this.intcode[this.pointer + paramPosition + 1];
-                switch(paramModes[paramPosition]) {
-                    case 0:
-                    case undefined:
-                        return paramValue;
-                    case 1:
-                        return this.pointer + paramPosition + 1;
-                    case 2:
-                        return this.relativeBase + paramValue;
-                    default:
-                        throw new Error(`Invalid param mode ${paramModes[position]}`);
-                }
-            }
-            const getParamValue = paramPosition => this.intcode[getLocation(paramPosition)] || 0;
-
-            if (opcode === 1) { // Add
-                this.intcode[getLocation(2)] = getParamValue(0) + getParamValue(1);
-                this.pointer += 4;
-            } else if (opcode === 2) { // Multiply
-                this.intcode[getLocation(2)] = getParamValue(0) * getParamValue(1);
-                this.pointer += 4;
-            } else if (opcode === 3) { // Input
-                // If there's no input, pause the machine until we get some
-                if (this.input.length === 0) {
-                    this.paused = true;
-                    // Let the caller know we're waiting for input
-                    this.push('');
-                    break;
-                }
-                // console.log(this.id, 'Input', this.input[0]);
-                this.intcode[getLocation(0)] = this.input.shift();
-                this.pointer += 2;
-            } else if (opcode === 4) { // Output
-                // console.log(this.id, 'Output', getParamValue(0));
-                this.push(getParamValue(0));
-                this.pointer += 2;
-            } else if (opcode === 5) { // Jump-if-true
-                if (getParamValue(0) !== 0) {
-                    this.pointer = getParamValue(1);
-                } else {
-                    this.pointer += 3;
-                }
-            } else if (opcode === 6) { // Jump-if-false
-                if (getParamValue(0) === 0) {
-                    this.pointer = getParamValue(1);
-                } else {
-                    this.pointer += 3;
-                }
-            } else if (opcode === 7) { // Less than
-                this.intcode[getLocation(2)] = getParamValue(0) < getParamValue(1) ? 1 : 0;
-                this.pointer += 4;
-            } else if (opcode === 8) { // Equals
-                this.intcode[getLocation(2)] = getParamValue(0) === getParamValue(1) ? 1 : 0;
-                this.pointer += 4;
-            } else if (opcode === 9) {
-                this.relativeBase += getParamValue(0);
-                this.pointer += 2;
-            } else {
-                throw new Error(`Invalid code ${this.intcode[this.pointer]} at ${this.pointer}`);
-            }
-        }
-        if (this.intcode[this.pointer] === 99) {
-            // console.log(this.id, 'Finished');
-            this.push(null);
-        }
-    }
-}
-
-function compute(intcode, input) {
-    return new Promise((resolve, reject) => {
-        const computer = new IntcodeComputer(intcode, input);
-        const output = [];
-        computer.on('end', () => resolve(output));
-        computer.on('error', reject);
-        computer.on('data', data => output.push(data));
-    });
 }
 
 
@@ -796,12 +680,30 @@ function factorize(num) {
 // Day 13
 
 class Game {
-    constructor(intcode) {
-        this.computer = new IntcodeComputer(intcode);
+    constructor(intcode, tag = null) {
+        this.computer = new IntcodeComputer(intcode, [], tag);
         this.iterator = this.computer[Symbol.asyncIterator]();
         this.gameBoard = [];
         this.score = 0;
         this.joystickPosition = 0;
+        this.tag = tag;
+    }
+
+    clone() {
+        const game = new Game([...this.computer.intcode], 'CLONE');
+        game.computer.pointer = this.computer.pointer;
+        game.computer.relativeBase = this.computer.relativeBase;
+        game.computer.input = [...this.computer.input];
+        game.computer.output = [...this.computer.output];
+        game.gameBoard = JSON.parse(JSON.stringify(this.gameBoard));
+        game.score = this.score;
+        game.joystickPosition = 0;
+        game.ballX = this.ballX;
+        game.ballY = this.ballY;
+        game.paddleX = this.paddleX;
+        game.paddleY = this.paddleY;
+
+        return game;
     }
 
     printBoard() {
@@ -809,21 +711,14 @@ class Game {
         return this.gameBoard.map(row => row.map(cell => symbol[cell]).join('')).join('\n');
     }
 
-    async step() {
-        this.computer.write(this.joystickPosition);
+    step() {
+        const {value:output, done} = this.computer.run(this.joystickPosition);
 
-        while(true) {
+        while (output.length) {
+            const x = output.shift();
+            const y = output.shift();
+            const type = output.shift();
 
-            const {value: x, done} = await this.iterator.next();
-            if (done) {
-                return true; // Finished the game
-            }
-            if (x === '') { // Input needed
-                return false;
-            }
-            const {value: y} = await this.iterator.next();
-            const {value: type} = await this.iterator.next();
-            
             if (x === -1 && y === 0) {
                 this.score = type;
             } else {
@@ -832,10 +727,8 @@ class Game {
 
                 // If it's the ball or paddle, cache the position
                 if (type === 4) {
-                    // if (this.ballX)
-                        this.ballXdirection = Math.sign(x - this.ballX);
-                    // if (this.ballY)
-                        this.ballYdirection = Math.sign(y - this.ballY);
+                    this.ballXdirection = Math.sign(x - this.ballX);
+                    this.ballYdirection = Math.sign(y - this.ballY);
                     this.ballX = x;
                     this.ballY = y;
                 }
@@ -845,6 +738,8 @@ class Game {
                 }
             }
         }
+
+        return done;
     }
 }
 
@@ -862,80 +757,45 @@ function wait(ms) {
     // Part 2
     intcode[0] = 2;
     const game2 = new Game([...intcode]);
-    // Handle the joystick
-    const readline = require('readline');
 
-    readline.emitKeypressEvents(process.stdin);
-    process.stdin.setRawMode(true);
-
-    process.stdin.on('keypress', (str, key) => {
-        if (str === 'q') {
-            process.exit();
-        }
-        else if (str === 'z') {
-            game2.joystickPosition = -1;
-        }
-        else if (str === 'x') {
-            game2.joystickPosition = 0;
-        }
-        else if (str === 'c') {
-            game2.joystickPosition = 1;
-        }
-    });
     // Run the game
-    while (!await game2.step()) {
+    while (!game2.step()) {
+        // Paused for input
+        console.clear();
         console.log('Score', game2.score, 'Joystick position', game2.joystickPosition, 'Ball position', game2.ballX, game2.ballY);
         console.log(game2.printBoard());
 
-        await wait(200);
-
-        // Predict where the ball will land when it reaches the paddle
-        let downXDirection, downXstart, downYstart;
-        if (game2.ballYdirection === -1) { // Going up
-            // Figure out where it's going to hit and which way it will bounce down
-            // If it ends up directly under a block, it bounces down the opposite way
-            // If it ends up with a rock in front and above, it bounces down the same way
-            for (let i=1; true; i++) {
-                const curX = game2.ballX + (i * game2.ballXdirection);
-                const curY = game2.ballY + (i * game2.ballYdirection);
-                if (game2.gameBoard[curY - 1][curX] > 0) {
-                    console.log('Going to hit', curX, curY - 1, 'Now at', curX, curY);
-                    // Bounce down the opposite way
-                    downXDirection = game2.ballXdirection;
-                    downXstart = curX;
-                    downYstart = curY;
-                    break;
-                } else if (game2.gameBoard[curY - 1][curX + game2.ballXdirection] > 0) {
-                    console.log('Going to hit', curX + game2.ballXdirection, curY - 1, 'Now at', curX, curY);
-                    downXDirection = game2.ballXdirection * -1;
-                    downXstart = curX;
-                    downYstart = curY;
-                    break;
-                }
+        // Figure out where the ball will land
+        if (game2.ballY < game2.paddleY - 1) {
+            // console.log('Current paddle position', game2.paddleX, game2.paddleY);
+            // Clone the game and run it until the ball hits the paddle's Y - 1
+            const clone = game2.clone();
+            let targetX = clone.ballX;
+            let finished;
+            while (!finished && clone.ballY < clone.paddleY - 1) {
+                // console.log('clone ball', clone.ballX, clone.ballY);                
+                finished = await clone.step();
+                // console.log('clone ball after step', clone.ballX, clone.ballY);                
+                // console.log('clone ball y', clone.ballY, 'clone paddle y', clone.paddleY, clone.ballY < game2.paddleY - 1, 'Finished', finished)
+                // console.log('Clone board', clone.printBoard().replace('\n', '\n   '))
+                targetX = clone.ballX;
+                // console.log('Finished', finished);
             }
-        } else {
-            downXDirection = game2.ballXdirection;
-            downXstart = game2.ballX;
-            downYstart = game2.ballY;
+            // console.log('Paddle needs to be at', targetX, 'currently at', game2.paddleX, game2.paddleY, 'ball predicted to hit', clone.ballX, clone.ballY)
+
+            // Set the joystick direction of the real game
+            game2.joystickPosition = Math.sign(targetX - game2.paddleX);
         }
-        // Going down
-        // How many steps away is it
-        const ticks = game2.paddleY - downYstart - 1;
-        // Paddle needs to be the same number of ticks in the right direction
-        const paddleNeedsToBe = downXstart + (ticks * downXDirection);
-        game2.joystickPosition = Math.sign(paddleNeedsToBe - game2.paddleX);
+        // await wait(100);
     }
-    // const readline = require('readline'), rl = readline.createInterface({input: process.stdin, output: process.stdout});
-    // const iterator = rl[Symbol.asyncIterator]();
-    
-    // process.stdin.on('data', data => console.log('stdin', data));
-    // while (!await game2.step(joystickPosition)) {
-        // console.log('Score', game2.score);
-        // console.log(game2.printBoard());
-        // joystickPosition = parseInt((await iterator.next()).value, 10);
-    // }
+    console.clear();
+    console.log('Score', game2.score, 'Joystick position', game2.joystickPosition, 'Ball position', game2.ballX, game2.ballY);
+    console.log(game2.printBoard());
 
 })();
+
+
+
 
 
 
