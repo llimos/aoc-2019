@@ -1,3 +1,4 @@
+import IntcodeComputer, {compute} from './IntcodeComputer.mjs';
 
 function parse(path) {
     const moves = path.split(',');
@@ -28,125 +29,6 @@ function parse(path) {
         }
     });
     return points;
-}
-
-const {Duplex} = require('stream');
-
-class IntcodeComputer extends Duplex {
-
-    constructor(intcode, initialInput, id) {
-        super ({
-            decodeStrings: false,
-            objectMode: true
-        });
-        this.intcode = intcode;
-        this.pointer = 0;
-        this.relativeBase = 0;
-        this.input = initialInput || [];
-        this.id = id;
-        this.paused = true;
-        this.output = [];
-    }
-
-    _write(chunk, encoding, callback) {
-        this.input.push(chunk);
-        if (this.paused) {
-            this.run();
-        }
-        callback();
-    }
-
-    _read() {
-        this.run();
-    }
-
-    run() {
-        this.paused = false;
-        // console.log(this.id, 'Running');
-        while (this.intcode[this.pointer] !== 99) {
-            const opcode = this.intcode[this.pointer] % 100,
-            paramModes = Math.floor(this.intcode[this.pointer] / 100).toString().split('').map(p => parseInt(p)).reverse();
-            // console.log(this.intcode.join(''));
-            // console.log(this.pointer, opcode, paramModes, this.intcode.slice(this.pointer, this.pointer + 4).join(','));
-            const getLocation = paramPosition => {
-                const paramValue = this.intcode[this.pointer + paramPosition + 1];
-                switch(paramModes[paramPosition]) {
-                    case 0:
-                    case undefined:
-                        return paramValue;
-                    case 1:
-                        return this.pointer + paramPosition + 1;
-                    case 2:
-                        return this.relativeBase + paramValue;
-                    default:
-                        throw new Error(`Invalid param mode ${paramModes[position]}`);
-                }
-            }
-            const getParamValue = paramPosition => this.intcode[getLocation(paramPosition)] || 0;
-
-            if (opcode === 1) { // Add
-                this.intcode[getLocation(2)] = getParamValue(0) + getParamValue(1);
-                this.pointer += 4;
-            } else if (opcode === 2) { // Multiply
-                this.intcode[getLocation(2)] = getParamValue(0) * getParamValue(1);
-                this.pointer += 4;
-            } else if (opcode === 3) { // Input
-                // If there's no input, pause the machine until we get some
-                if (this.input.length === 0) {
-                    this.paused = true;
-                    console.log(this.id, 'Waiting for input')
-                    // Let the caller know we're waiting for input
-                    this.push('');
-                    break;
-                }
-                // console.log(this.id, 'Input', this.input[0]);
-                this.intcode[getLocation(0)] = this.input.shift();
-                this.pointer += 2;
-            } else if (opcode === 4) { // Output
-                // console.log(this.id, 'Output', getParamValue(0));
-                this.push(getParamValue(0));
-                this.pointer += 2;
-            } else if (opcode === 5) { // Jump-if-true
-                if (getParamValue(0) !== 0) {
-                    this.pointer = getParamValue(1);
-                } else {
-                    this.pointer += 3;
-                }
-            } else if (opcode === 6) { // Jump-if-false
-                if (getParamValue(0) === 0) {
-                    this.pointer = getParamValue(1);
-                } else {
-                    this.pointer += 3;
-                }
-            } else if (opcode === 7) { // Less than
-                this.intcode[getLocation(2)] = getParamValue(0) < getParamValue(1) ? 1 : 0;
-                this.pointer += 4;
-            } else if (opcode === 8) { // Equals
-                this.intcode[getLocation(2)] = getParamValue(0) === getParamValue(1) ? 1 : 0;
-                this.pointer += 4;
-            } else if (opcode === 9) {
-                this.relativeBase += getParamValue(0);
-                this.pointer += 2;
-            } else {
-                throw new Error(`Invalid code ${this.intcode[this.pointer]} at ${this.pointer}`);
-            }
-        }
-        // console.log(this.id, 'End loop')
-        if (this.intcode[this.pointer] === 99) {
-            console.log(this.id, 'Computer Finished');
-            this.push(null);
-        }
-    }
-}
-
-function compute(intcode, input) {
-    return new Promise((resolve, reject) => {
-        const computer = new IntcodeComputer(intcode, input);
-        const output = [];
-        computer.on('end', () => resolve(output));
-        computer.on('error', reject);
-        computer.on('data', data => output.push(data));
-    });
 }
 
 
@@ -829,31 +711,14 @@ class Game {
         return this.gameBoard.map(row => row.map(cell => symbol[cell]).join('')).join('\n');
     }
 
-    async step() {
-        // const iterator = this.computer[Symbol.asyncIterator]();
-        // console.log(this.tag, 'Start step')
-        if (this.computer.paused && this.computer.input.length === 0) {
-            // console.log(this.tag, 'Writing', this.joystickPosition)
-            this.computer.write(this.joystickPosition);
-        }
+    step() {
+        const {value:output, done} = this.computer.run(this.joystickPosition);
 
-        while(true) {
+        while (output.length) {
+            const x = output.shift();
+            const y = output.shift();
+            const type = output.shift();
 
-            const {value: x, done} = await this.iterator.next();
-            // console.log(this.tag, x, done);
-            if (done) {
-                console.log(this.tag, 'Game complete')
-                return true; // Finished the game
-            }
-            if (x === '') { // Input needed
-                console.log(this.tag, 'Awaiting input')
-                return false;
-            }
-            const {value: y, done: done2} = await this.iterator.next();
-            // console.log(this.tag, y, done2);
-            const {value: type, done: done3} = await this.iterator.next();
-            // console.log(this.tag, type, done3);
-            
             if (x === -1 && y === 0) {
                 this.score = type;
             } else {
@@ -873,6 +738,8 @@ class Game {
                 }
             }
         }
+
+        return done;
     }
 }
 
@@ -892,8 +759,9 @@ function wait(ms) {
     const game2 = new Game([...intcode]);
 
     // Run the game
-    while (!await game2.step()) {
+    while (!game2.step()) {
         // Paused for input
+        console.clear();
         console.log('Score', game2.score, 'Joystick position', game2.joystickPosition, 'Ball position', game2.ballX, game2.ballY);
         console.log(game2.printBoard());
 
@@ -905,22 +773,29 @@ function wait(ms) {
             let targetX = clone.ballX;
             let finished;
             while (!finished && clone.ballY < clone.paddleY - 1) {
-                console.log('clone ball', clone.ballX, clone.ballY);                
+                // console.log('clone ball', clone.ballX, clone.ballY);                
                 finished = await clone.step();
-                console.log('clone ball after step', clone.ballX, clone.ballY);                
-                console.log('clone ball y', clone.ballY, 'clone paddle y', clone.paddleY, clone.ballY < game2.paddleY - 1, 'Finished', finished)
-                console.log('Clone board', clone.printBoard().replace('\n', '\n   '))
+                // console.log('clone ball after step', clone.ballX, clone.ballY);                
+                // console.log('clone ball y', clone.ballY, 'clone paddle y', clone.paddleY, clone.ballY < game2.paddleY - 1, 'Finished', finished)
+                // console.log('Clone board', clone.printBoard().replace('\n', '\n   '))
                 targetX = clone.ballX;
                 // console.log('Finished', finished);
             }
-            console.log('Paddle needs to be at', targetX, 'currently at', game2.paddleX, game2.paddleY, 'ball predicted to hit', clone.ballX, clone.ballY)
+            // console.log('Paddle needs to be at', targetX, 'currently at', game2.paddleX, game2.paddleY, 'ball predicted to hit', clone.ballX, clone.ballY)
 
             // Set the joystick direction of the real game
             game2.joystickPosition = Math.sign(targetX - game2.paddleX);
         }
+        // await wait(100);
     }
+    console.clear();
+    console.log('Score', game2.score, 'Joystick position', game2.joystickPosition, 'Ball position', game2.ballX, game2.ballY);
+    console.log(game2.printBoard());
 
 })();
+
+
+
 
 
 
