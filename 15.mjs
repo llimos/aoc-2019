@@ -67,11 +67,39 @@ function printGrid(grid, droidX, droidY) {
 }
 
 
+const stepsToTarget = {};
 
 // TODO Recursive function with backtracking for each potential direction
-function tryMove(dir) {
-    // Get potential directions from grid
-    // Iterate through them, calling self
+function getMinStepsToTarget(x, y, steps = 0) {
+    // Get potential directions from grid, not already visited
+    let minSteps = Infinity;
+    for (const direction of [1,2,3,4]) {
+        let newX = x, newY = y;
+        if (dir === 1) {
+            newY--;
+        } else if (dir === 2) {
+            newY++;
+        } else if (dir === 3) {
+            newX--;
+        } else if (dir === 4) {
+            newX++;
+        }
+        // Check if already visited
+        if (stepsToTarget[newX] && stepsToTarget[newX][newY]) {
+            minSteps = Math.min(minSteps, steps + 1 + stepsToTarget[x]);
+        } else if (!stepsToTarget[x] || !(y in stepsToTarget[x])) {
+            const toTarget = getMinStepsToTarget(newX, newY, steps + 1);
+            
+            if (toTarget) {
+                minSteps = Math.min(minSteps, toTarget);
+            }
+        } else {
+            // No way to target from here
+        }
+    }
+    // Iterate through them
+    // If has path to destination, calculate & return
+    // If not, go through
     // If returns false, backtrack 
     // and then try the next one
     // If all return false, return false
