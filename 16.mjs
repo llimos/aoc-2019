@@ -15,10 +15,22 @@ function getOutputForI(input, i) {
     return Math.abs(total % 10);
 }
 
-function getOutput(input) {
+function getOutput(input, repeat = 1) {
     let output = '';
     for (let i = 0; i < input.length; i++) {
-        output += getOutputForI(input, i).toString();
+        const totalLength = input * repeat;
+        const patternLength = basePattern.length * (i+1);
+        const loopSize = lcm([input.length, patternLength]);
+        const numberOfRepeatsToProcess = Math.min(loopSize / input.length, repeat);
+        const toProcess = input.repeat(numberOfRepeatsToProcess);
+        let result = getOutputForI(toProcess, i).toString();
+        const numberOfLoops = Math.floor(toProcess.length / input.length);
+        result *= numberOfLoops;
+        // Sort out what's left after the loops
+        
+
+        
+
         console.log('Done', i+1, 'digits');
     }
     return output;
