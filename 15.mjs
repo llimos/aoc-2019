@@ -4,46 +4,138 @@ const intcode = [3,1033,1008,1033,1,1032,1005,1032,31,1008,1033,2,1032,1005,1032
 const computer = new IntcodeComputer(intcode);
 
 // Use a Map with strings to store the locations, since they might be negative
-const grid = new Map;
+const grid = new Map([['0,0','S']]);
 let x = 0, y = 0;
-let found = false;
-main_loop: while (!found) {
-    printGrid(grid, x, y);
+
+// let found = false;
+// main_loop: while (!found) {
+//     printGrid(grid, x, y);
+//     for (const dir of [1,2,3,4]) {
+//         let newX = x, newY = y, tried_all = false;
+//         if (dir === 1) {
+//             newY--;
+//         } else if (dir === 2) {
+//             newY++;
+//         } else if (dir === 3) {
+//             newX--;
+//         } else if (dir === 4) {
+//             newX++;
+//         }
+//         const newLocation = `${newX},${newY}`;
+//         // If it's somewhere we've been before, skip it unless it's the only thing left
+//         if (!tried_all && grid.has(newLocation)) {
+//             continue;
+//         }
+//         console.log('Turning', dir);
+//         const {value: [status]} = computer.run(dir);
+//         console.log('Result', status);
+//         grid.set(newLocation, status);
+//         if (status === 1 || status === 2) {
+//             x = newX;
+//             y = newY;
+//             if (status === 2) {
+//                 found = true;
+//             }
+//             continue main_loop;
+//         } else if (status === 0) {
+//             if (dir === 4) {
+//                 tried_all = true;
+//             }
+//         }
+//     }
+// }
+// console.log('Found it', grid);
+
+const stepsToTarget = {}; // 2-d array of coordinates. Number = number of steps. False = unreachable. Null = wall. Undefined = not yet visited.
+let oxygenX, oxygenY;
+// Recursive function with backtracking for each potential direction
+function getMinStepsToTargetFromCurrentLocation(ind = 0) {
+    const indent = ' '.repeat(ind);
+    // console.log(indent, 'Droid at', x, y);
+    // Get potential directions from grid, not already visited
+    // Set current square to false, to avoid the next one coming back here
+    stepsToTarget[x] = stepsToTarget[x] || [];
+    stepsToTarget[x][y] = false;
+
+    let minSteps = false;
     for (const dir of [1,2,3,4]) {
-        let newX = x, newY = y, tried_all = false;
+        let newX = x, origX = x, newY = y, origY = y, reverse;
         if (dir === 1) {
             newY--;
+            reverse = 2;
         } else if (dir === 2) {
             newY++;
+            reverse = 1;
         } else if (dir === 3) {
             newX--;
+            reverse = 4;
         } else if (dir === 4) {
             newX++;
+            reverse = 3;
         }
-        const newLocation = `${newX},${newY}`;
-        // If it's somewhere we've been before, skip it unless it's the only thing left
-        if (!tried_all && grid.has(newLocation)) {
-            continue;
+
+
+        // Check if already visited
+        let stepsFromNextSquare = false;
+        if (stepsToTarget[newX] && stepsToTarget[newX][newY] !== undefined) {
+            stepsFromNextSquare = stepsToTarget[newX][newY];
+            // console.log(indent, 'Already been to direction', dir, 'space', newX, newY, 'result', stepsToTarget[newX][newY]);
+        } else {
+            // Try to go there
+            const {value: [status]} = computer.run(dir);
+            // console.log(indent, 'Checking', dir, 'to', newX, newY, 'status', status);
+            
+            // For displaying grid
+            const newLocation = `${newX},${newY}`;
+            grid.set(newLocation, status);
+            
+            if (status) {
+                // We moved. Update coordinates
+                x = newX;
+                y = newY;
+                if (status === 2) {
+                    // Found it!
+                    stepsFromNextSquare = 0;
+                    stepsToTarget[x] = stepsToTarget[x] || [];
+                    stepsToTarget[x][y] = 0;
+                    oxygenX = x;
+                    oxygenY = y;
+                } else if (status === 1) {
+                    // console.log(indent, 'Going to', x, y, 'status', status);
+                    const stepsFromThere = getMinStepsToTargetFromCurrentLocation(ind + 1);
+                    // console.log(indent, 'Came back from', x, y, 'min steps from there', stepsFromThere);
+                    if (stepsFromThere) {
+                        stepsFromNextSquare = stepsFromThere;
+                    } else {
+                        stepsToTarget[x][y] = false; // Unreachable
+                    }
+                }
+                // After visiting that square, come back
+                computer.run(reverse); // Don't care about the output
+                x = origX;
+                y = origY;
+                // console.log(indent, 'Back to', x, y);
+            } else {
+                // console.log(indent, `Can't go`, dir, '- wall');
+                stepsToTarget[newX] = stepsToTarget[newX] || [];
+                stepsToTarget[newX][newY] = null; // Wall
+            }
         }
-        console.log('Turning', dir);
-        const {value: [status]} = computer.run(dir);
-        console.log('Result', status);
-        grid.set(newLocation, status);
-        if (status === 1 || status === 2) {
-            x = newX;
-            y = newY;
-            if (status === 2) {
-                found = true;
-            }
-            continue main_loop;
-        } else if (status === 0) {
-            if (dir === 4) {
-                tried_all = true;
-            }
+
+
+        // console.log(indent, 'Finished direction', dir, 'min steps from there', stepsFromNextSquare);
+        if (stepsFromNextSquare !== false && stepsFromNextSquare !== null && (minSteps === false || stepsFromNextSquare + 1 < minSteps)) {
+            // console.log('Adding 1 to', stepsFromNextSquare);
+            minSteps = stepsFromNextSquare + 1;
         }
     }
+    stepsToTarget[x][y] = minSteps;
+    return minSteps;
 }
-console.log('Found it', grid);
+
+
+
+
 
 function printGrid(grid, droidX, droidY) {
     grid = new Map(grid.entries());
@@ -51,14 +143,14 @@ function printGrid(grid, droidX, droidY) {
     // Find the lowest x and y
     const mins = Array.from(grid.keys()).reduce((acc, coords) => {
         const [x, y] = coords.split(',');
-        return {minX: Math.min(x, acc.maxX), minY: Math.min(y, acc.minY), maxX: Math.max(x, acc.maxX), maxY: Math.max(y, acc.maxY)};
+        return {minX: Math.min(x, acc.minX), minY: Math.min(y, acc.minY), maxX: Math.max(x, acc.maxX), maxY: Math.max(y, acc.maxY)};
     }, {minX: 0, minY: 0, maxX: 0, maxY: 0});
     const display = new Array(mins.maxY - mins.minY + 1).fill().map(undefined => new Array(mins.maxX - mins.minX + 1).fill(' '));
     for (const [coords, status] of grid.entries()) {
         let [x, y] = coords.split(',');
         x -= mins.minX;
         y -= mins.minY;
-        const symbol = status === 0 ? '#' : status === 1 ? '.' : status === 2 ? 'O' : status === 'D' ? 'D' :'!';
+        const symbol = status === 0 ? '#' : status === 1 ? '.' : status === 2 ? 'O' : status;
         display[y] = display[y] || [];
         display[y][x] = symbol;
     }
@@ -67,40 +159,48 @@ function printGrid(grid, droidX, droidY) {
 }
 
 
-const stepsToTarget = {};
+console.log(getMinStepsToTargetFromCurrentLocation());
+// console.log(printGrid(grid, x, y));
+// console.log(stepsToTarget);
 
-// TODO Recursive function with backtracking for each potential direction
-function getMinStepsToTarget(x, y, steps = 0) {
-    // Get potential directions from grid, not already visited
-    let minSteps = Infinity;
-    for (const direction of [1,2,3,4]) {
-        let newX = x, newY = y;
-        if (dir === 1) {
-            newY--;
-        } else if (dir === 2) {
-            newY++;
-        } else if (dir === 3) {
-            newX--;
-        } else if (dir === 4) {
-            newX++;
-        }
-        // Check if already visited
-        if (stepsToTarget[newX] && stepsToTarget[newX][newY]) {
-            minSteps = Math.min(minSteps, steps + 1 + stepsToTarget[x]);
-        } else if (!stepsToTarget[x] || !(y in stepsToTarget[x])) {
-            const toTarget = getMinStepsToTarget(newX, newY, steps + 1);
-            
-            if (toTarget) {
-                minSteps = Math.min(minSteps, toTarget);
+
+
+
+// Part 2
+
+// BFS starting from oxygen location
+const queue = [[`${oxygenX},${oxygenY}`]];
+let i = -1;
+const coords = new Set(Array.from(grid.entries()).filter(([, status]) => status === 1).map(([coord]) => coord));
+// console.log(coords);
+do {
+    // console.log('Queue', queue);
+    const iteration = queue.shift();
+    // console.log('Iteration', iteration);
+    const nextIteration = [];
+    // Check all directions
+    for (const point of iteration) {
+        // console.log('Reached', point);
+        // Check all directions and add to the next iteration
+        const [x,y] = point.split(',').map(a => parseInt(a));
+        const combinations = [
+            `${x+1},${y}`,
+            `${x-1},${y}`,
+            `${x},${y+1}`,
+            `${x},${y-1}`,
+        ]
+        for (const newPoint of combinations) {
+            // console.log('Looking for', newPoint);
+            if (coords.has(newPoint)) {
+                nextIteration.push(newPoint);
             }
-        } else {
-            // No way to target from here
         }
+        coords.delete(point);
     }
-    // Iterate through them
-    // If has path to destination, calculate & return
-    // If not, go through
-    // If returns false, backtrack 
-    // and then try the next one
-    // If all return false, return false
-}
+    if (nextIteration.length > 0) {
+        queue.push(nextIteration);
+    }
+
+    i++;
+} while (queue.length > 0);
+console.log(i);
