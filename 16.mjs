@@ -5,7 +5,7 @@ function getPatternMultiplierForPosition(i, position) {
     return basePattern[(Math.floor((position + 1) / (i + 1)) % basePattern.length)];
 }
 
-function getOutputForI(input, i) {
+function getOutputForI(i, input, repeat) {
     let total = 0;
     for (let position = 0; position < input.length; position++) {
         const multiplier = getPatternMultiplierForPosition(i, position);
@@ -23,7 +23,7 @@ function getOutput(input, repeat = 1) {
         const loopSize = lcm([input.length, patternLength]);
         const numberOfRepeatsToProcess = Math.min(loopSize / input.length, repeat);
         const toProcess = input.repeat(numberOfRepeatsToProcess);
-        let result = getOutputForI(toProcess, i).toString();
+        let result = getOutputForI(i, toProcess, repeat).toString();
         const numberOfLoops = Math.floor(toProcess.length / input.length);
         result *= numberOfLoops;
         // Sort out what's left after the loops
