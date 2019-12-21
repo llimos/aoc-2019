@@ -1,11 +1,15 @@
-const input=`########################
-#f.D.E.e.C.b.A.@.a.B.c.#
-######################.#
-#d.....................#
-########################`;
+const input=`#################
+#i.G..c...e..H.p#
+########.########
+#j.A..b...f..D.o#
+########@########
+#k.E..a...g..B.n#
+########.########
+#l.F..d...h..C.m#
+#################`;
 
 const map = input.split('\n').map(row => row.split(''));
-console.log(map);
+// console.log(map);
 
 // Save locations of things
 const allkeys = [];
@@ -24,14 +28,15 @@ for (let y = 0; y < map.length; y++) {
 
 function getSteps({x, y}, {x: cameFromX, y: cameFromY}, keys = [], indent = 0) {
     const ind = ' '.repeat(indent);
-    console.log(ind, y,x,map[y][x]);
+    // console.log(ind, y,x,map[y][x]);
     
     const newKeys = [...keys];
     if (newKeys.length === allkeys.length) {
+        // console.log('Found it', newKeys)
         return 0;
     }
     let hasNewKey = false;
-    if (map[y][x] >= 'a' && map[y][x] <= 'z') {
+    if (map[y][x] >= 'a' && map[y][x] <= 'z' && !newKeys.includes(map[y][x])) {
         newKeys.push(map[y][x]);
         hasNewKey = true;
     }
@@ -59,10 +64,10 @@ function getSteps({x, y}, {x: cameFromX, y: cameFromY}, keys = [], indent = 0) {
     if (possibleMoves.length === 0) return 1 + getSteps({x:cameFromX,y:cameFromY}, {x,y}, newKeys, ind);
     else if (possibleMoves.length === 1) return 1 + getSteps(possibleMoves[0], {x,y}, newKeys, ind);
     else return 1 + possibleMoves.reduce((minsteps, next, i) => {
-        console.log(ind, 'Trying alternative', i, 'from', x, y)
+        // console.log(ind, 'Trying alternative', i, 'from', x, y)
         const steps = getSteps(next, {x,y}, newKeys, ind+1);
-        console.log(ind, 'Did it in', steps, 'steps')
-        return Math.min(minsteps, getSteps(next, {x,y}, newKeys, ind+1));
+        // console.log(ind, 'Did it in', steps, 'steps')
+        return Math.min(minsteps, steps);
     }, Infinity);
 }
 
