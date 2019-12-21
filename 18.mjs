@@ -26,7 +26,7 @@ for (let y = 0; y < map.length; y++) {
     }
 }
 
-function getSteps({x, y}, {x: cameFromX, y: cameFromY}, keys = [], indent = 0) {
+function getSteps({x, y}, {x: cameFromX, y: cameFromY}, branchFrom, branchKeys, keys = [], indent = 0) {
     const ind = ' '.repeat(indent);
     // console.log(ind, y,x,map[y][x]);
     
@@ -34,6 +34,9 @@ function getSteps({x, y}, {x: cameFromX, y: cameFromY}, keys = [], indent = 0) {
     if (newKeys.length === allkeys.length) {
         // console.log('Found it', newKeys)
         return 0;
+    }
+    if (branchFrom && x === branchFrom.x && y === branchFrom.y && newKeys.length === branchKeys) {
+        return Infinity;
     }
     let hasNewKey = false;
     if (map[y][x] >= 'a' && map[y][x] <= 'z' && !newKeys.includes(map[y][x])) {
@@ -61,11 +64,11 @@ function getSteps({x, y}, {x: cameFromX, y: cameFromY}, keys = [], indent = 0) {
     if (canMoveTo(x, y+1)) possibleMoves.push({x, y:y+1});
     if (canMoveTo(x, y-1)) possibleMoves.push({x, y:y-1});
     
-    if (possibleMoves.length === 0) return 1 + getSteps({x:cameFromX,y:cameFromY}, {x,y}, newKeys, ind);
-    else if (possibleMoves.length === 1) return 1 + getSteps(possibleMoves[0], {x,y}, newKeys, ind);
+    if (possibleMoves.length === 0) return 1 + getSteps({x:cameFromX,y:cameFromY}, {x,y}, branchFrom, branchKeys, newKeys, ind);
+    else if (possibleMoves.length === 1) return 1 + getSteps(possibleMoves[0], {x,y}, branchFrom, branchKeys, newKeys, ind);
     else return 1 + possibleMoves.reduce((minsteps, next, i) => {
         // console.log(ind, 'Trying alternative', i, 'from', x, y)
-        const steps = getSteps(next, {x,y}, newKeys, ind+1);
+        const steps = getSteps(next, {x,y}, {x,y}, newKeys.length, newKeys, ind+1);
         // console.log(ind, 'Did it in', steps, 'steps')
         return Math.min(minsteps, steps);
     }, Infinity);
