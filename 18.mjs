@@ -6,7 +6,7 @@ const map = input.split('\n').map(row => row.split(''));
 console.log(map);
 
 // Save locations of things
-const keys = [];
+const allkeys = [];
 let startx,starty;
 for (let y = 0; y < map.length; y++) {
     for (let x = 0; x < map[y].length; x++) {
@@ -15,7 +15,7 @@ for (let y = 0; y < map.length; y++) {
             starty = y;
         }
         else if (map[y][x] >= 'a' && map[y][x] <= 'z') {
-            keys.push(map[y][x]);
+            allkeys.push(map[y][x]);
         }
     }
 }
@@ -24,6 +24,9 @@ function getSteps({x, y}, {x: cameFromX, y: cameFromY}, keys = []) {
     console.log(y,x,map[y][x]);
     
     const newKeys = [...keys];
+    if (newKeys.length === allkeys.length) {
+        return 0;
+    }
     let hasNewKey = false;
     if (map[y][x] >= 'a' && map[x][y] <= 'z') {
         newKeys.push(map[x][y]);
