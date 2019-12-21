@@ -1,6 +1,8 @@
-const input=`#########
-#b.A.@.a#
-#########`;
+const input=`########################
+#f.D.E.e.C.b.A.@.a.B.c.#
+######################.#
+#d.....................#
+########################`;
 
 const map = input.split('\n').map(row => row.split(''));
 console.log(map);
@@ -20,16 +22,17 @@ for (let y = 0; y < map.length; y++) {
     }
 }
 
-function getSteps({x, y}, {x: cameFromX, y: cameFromY}, keys = []) {
-    console.log(y,x,map[y][x]);
+function getSteps({x, y}, {x: cameFromX, y: cameFromY}, keys = [], indent = 0) {
+    const ind = ' '.repeat(indent);
+    console.log(ind, y,x,map[y][x]);
     
     const newKeys = [...keys];
     if (newKeys.length === allkeys.length) {
         return 0;
     }
     let hasNewKey = false;
-    if (map[y][x] >= 'a' && map[x][y] <= 'z') {
-        newKeys.push(map[x][y]);
+    if (map[y][x] >= 'a' && map[y][x] <= 'z') {
+        newKeys.push(map[y][x]);
         hasNewKey = true;
     }
 
@@ -42,7 +45,7 @@ function getSteps({x, y}, {x: cameFromX, y: cameFromY}, keys = []) {
         if (!map[y][x]) return false;
         if (map[y][x] === '#') return false;
         if (x === cameFromX && y === cameFromY && !hasNewKey) return false;
-        if (map[y][x] === '.') return true;
+        if (map[y][x] === '.' || map[y][x] === '@') return true;
         if (map[y][x] >= 'a' && map[y][x] <= 'z') return true;
         if (map[y][x] >= 'A' && map[y][x] <= 'Z') return keys.includes(map[y][x].toLowerCase());
     }
@@ -53,9 +56,14 @@ function getSteps({x, y}, {x: cameFromX, y: cameFromY}, keys = []) {
     if (canMoveTo(x, y+1)) possibleMoves.push({x, y:y+1});
     if (canMoveTo(x, y-1)) possibleMoves.push({x, y:y-1});
     
-    if (possibleMoves.length === 0) return 1 + getSteps(possibleMoves[0], {x:cameFromY,y:cameFromY}, newKeys);
-    else if (possibleMoves.length === 1) return 1 + getSteps(possibleMoves[0], {x,y}, newKeys);
-    else return 1 + possibleMoves.reduce((minsteps, next) => Math.min(minsteps, getSteps(next, {x,y}, newKeys)));
+    if (possibleMoves.length === 0) return 1 + getSteps({x:cameFromX,y:cameFromY}, {x,y}, newKeys, ind);
+    else if (possibleMoves.length === 1) return 1 + getSteps(possibleMoves[0], {x,y}, newKeys, ind);
+    else return 1 + possibleMoves.reduce((minsteps, next, i) => {
+        console.log(ind, 'Trying alternative', i, 'from', x, y)
+        const steps = getSteps(next, {x,y}, newKeys, ind+1);
+        console.log(ind, 'Did it in', steps, 'steps')
+        return Math.min(minsteps, getSteps(next, {x,y}, newKeys, ind+1));
+    }, Infinity);
 }
 
-console.log(getSteps({x:startx, y:starty}, {x:startx, y:starty}))
+console.log(getSteps({x:startx, y:starty}, {x:startx, y:starty}) - 1)
