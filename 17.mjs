@@ -33,12 +33,6 @@ import IntcodeComputer, {compute} from './IntcodeComputer.mjs';
     const B = 'L,12,R,6,L,8,L,12';
     const C = 'R,12,L,10,L,10';
     const program = 'A,A,B,C,B,C,B,C,B,A'
-    const input = [
-        ...program.split('').map(a => a.charCodeAt(0)), 10,
-        ...A.split('').map(a => a.charCodeAt(0)), 10,
-        ...B.split('').map(a => a.charCodeAt(0)), 10,
-        ...C.split('').map(a => a.charCodeAt(0)), 10,
-        'n'.charCodeAt(0), 10
-    ];
+    const input = `${program}\n${A}\n${B}\n${C}\nn\n`.split('').map(a => a.charCodeAt(0));
     console.log(computer.run(input).value.pop());
 })();
