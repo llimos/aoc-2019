@@ -50,7 +50,7 @@ function getSteps({x, y}, {x: cameFromX, y: cameFromY}, keys = []) {
     if (canMoveTo(x, y+1)) possibleMoves.push({x, y:y+1});
     if (canMoveTo(x, y-1)) possibleMoves.push({x, y:y-1});
     
-    if (possibleMoves.length === 0) return 1 + getSteps(possibleMoves[0], {x,y}, newKeys);
+    if (possibleMoves.length === 0) return 1 + getSteps(possibleMoves[0], {x:cameFromY,y:cameFromY}, newKeys);
     else if (possibleMoves.length === 1) return 1 + getSteps(possibleMoves[0], {x,y}, newKeys);
     else return 1 + possibleMoves.reduce((minsteps, next) => Math.min(minsteps, getSteps(next, {x,y}, newKeys)));
 }
