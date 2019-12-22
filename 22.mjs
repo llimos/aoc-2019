@@ -5,10 +5,10 @@ function newStack(deck) {
 function cut(n, deck) {
     if (n >= 0) {
         const spliced = deck.splice(0, n);
-        return [...deck, spliced];
+        return [...deck, ...spliced];
     } else {
         const spliced = deck.splice(n);
-        return [...spliced, deck];
+        return [...spliced, ...deck];
     }
 }
 
@@ -23,4 +23,5 @@ function deal(increment, deck) {
 }
 
 const deck = new Array(10).fill().map((a,i)=>i);
-console.log(newStack(newStack(deal(deck, 7))));
+console.log(newStack(newStack(deal(7, [...deck]))));
+console.log(cut(-1, deal(3, deal(9, cut(3, deal(7, cut(-4, cut(8, deal(7, cut(-2, newStack([...deck])))))))))))
