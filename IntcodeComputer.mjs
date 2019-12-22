@@ -126,11 +126,5 @@ export default class IntcodeComputer extends Duplex {
 }
 
 export function compute(intcode, input) {
-    return new Promise((resolve, reject) => {
-        const computer = new IntcodeComputer(intcode, input);
-        const output = [];
-        computer.on('end', () => resolve(output));
-        computer.on('error', reject);
-        computer.on('data', data => output.push(data));
-    });
+    return new IntcodeComputer(intcode).run(input).value;
 }

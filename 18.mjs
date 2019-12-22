@@ -36,6 +36,8 @@ function getSteps({x, y}, {x: cameFromX, y: cameFromY}, branchFrom, branchKeys, 
         return 0;
     }
     if (branchFrom && x === branchFrom.x && y === branchFrom.y && newKeys.length === branchKeys) {
+        // We got back to the start point without adding any new keys
+        // Return an array of which doors block the way
         return Infinity;
     }
     let hasNewKey = false;
@@ -64,14 +66,42 @@ function getSteps({x, y}, {x: cameFromX, y: cameFromY}, branchFrom, branchKeys, 
     if (canMoveTo(x, y+1)) possibleMoves.push({x, y:y+1});
     if (canMoveTo(x, y-1)) possibleMoves.push({x, y:y-1});
     
-    if (possibleMoves.length === 0) return 1 + getSteps({x:cameFromX,y:cameFromY}, {x,y}, branchFrom, branchKeys, newKeys, ind);
-    else if (possibleMoves.length === 1) return 1 + getSteps(possibleMoves[0], {x,y}, branchFrom, branchKeys, newKeys, ind);
-    else return 1 + possibleMoves.reduce((minsteps, next, i) => {
-        // console.log(ind, 'Trying alternative', i, 'from', x, y)
-        const steps = getSteps(next, {x,y}, {x,y}, newKeys.length, newKeys, ind+1);
-        // console.log(ind, 'Did it in', steps, 'steps')
-        return Math.min(minsteps, steps);
-    }, Infinity);
+    let minStepsFromHere = Infinity;
+    if (possibleMoves.length === 0) {
+        // We're stuck. If we got more keys than when we branched, go back the way we came, otherwise bail
+        if (newKeys.length > branchKeys) {
+            const steps = getSteps({x:cameFromX,y:cameFromY}, {x,y}, branchFrom, branchKeys, newKeys, ind);
+            if (steps !== false) {
+                return steps + 1;
+            } else {
+                return steps;
+            }
+        }
+        else {
+            return false;
+        }
+    }
+    else if (possibleMoves.length === 1) {
+        const steps = getSteps(possibleMoves[0], {x,y}, branchFrom, branchKeys, newKeys, ind);
+        if (steps !== false) {
+            return steps + 1;
+        } else {
+            return steps;
+        }
+    }
+    else {
+        const steps = possibleMoves.reduce((minsteps, next) => {
+            // console.log(ind, 'Trying alternative', i, 'from', x, y)
+            const steps = getSteps(next, {x,y}, {x,y}, newKeys.length, newKeys, ind+1);
+            // console.log(ind, 'Did it in', steps, 'steps')
+            if (steps !== false) {
+                return Math.min(minsteps);
+            } else {
+                return minsteps;
+            }
+        }, Infinity);
+        return (steps < Infinity) ? steps : false;
+    }
 }
 
 console.log(getSteps({x:startx, y:starty}, {x:startx, y:starty}) - 1)
