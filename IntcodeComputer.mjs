@@ -2,7 +2,7 @@ import {Duplex} from 'stream';
 
 export default class IntcodeComputer extends Duplex {
 
-    constructor(intcode, initialInput, id) {
+    constructor(intcode, initialInput = [], id) {
         super ({
             decodeStrings: false,
             objectMode: true
@@ -10,7 +10,7 @@ export default class IntcodeComputer extends Duplex {
         this.intcode = intcode;
         this.pointer = 0;
         this.relativeBase = 0;
-        this.input = initialInput || [];
+        this.input = [...initialInput];
         this.id = id;
         this.paused = true;
         this.output = [];

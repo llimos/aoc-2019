@@ -25,9 +25,9 @@ function deal(increment, deck) {
 function createDeck(cards) {
     return new Array(cards).fill().map((a,i)=>i);
 }
-const deck = new Array(10).fill().map((a,i)=>i);
-console.log(newStack(newStack(deal(7, [...deck]))));
-console.log(cut(-1, deal(3, deal(9, cut(3, deal(7, cut(-4, cut(8, deal(7, cut(-2, newStack([...deck])))))))))));
+// const deck = new Array(10).fill().map((a,i)=>i);
+// console.log(newStack(newStack(deal(7, [...deck]))));
+// console.log(cut(-1, deal(3, deal(9, cut(3, deal(7, cut(-4, cut(8, deal(7, cut(-2, newStack([...deck])))))))))));
 
 function parseAndShuffle(input, deck) {
     const steps = input.split('\n');
@@ -38,7 +38,7 @@ function parseAndShuffle(input, deck) {
         else if (step.startsWith('cut'))
             deck = cut(parseInt(step.split(' ')[1]), deck);
         else if (step.startsWith('deal with increment'))
-            deck = deal(step.split(' ')[3], deck);
+            deck = deal(parseInt(step.split(' ')[3]), deck);
     }
     return deck;
 }
@@ -145,13 +145,78 @@ deal with increment 61
 deal into new stack`;
 console.log(parseAndShuffle(input, createDeck(10007)).indexOf(2019));
 
-function repeatShuffle(input, cards, repeat) {
-    let deck = createDeck(cards);
-    for (i = 0; i < repeat; i++) {
-        deck = parseAndShuffle(input, deck);
-        if (i % 1000000 === 0) console.log(i);
+function getPosition(input, cards, position) {
+    const steps = input.split('\n');
+    let step;
+    while (step = steps.shift()) {
+        if (step === 'deal into new stack')
+            position = cards - position;
+        else if (step.startsWith('cut')) {
+            const cut = parseInt(step.split(' ')[1]);
+            if (cut >= 0) {
+                if (position < cut) {
+                    position += (cards - cut);
+                } else {
+                    position -= cut;
+                }
+            } else {
+                if (position < cards - cut) {
+                    position -= cut;
+                } else {
+                    position -= cut;
+                }
+            }
+        } else if (step.startsWith('deal with increment'))
+            position = position * parseInt(step.split(' ')[3]) % cards;
     }
-    return deck;
+    return position;
 }
 
-console.log(repeatShuffle(input, 119315717514047, 101741582076661).indexOf(2020));
+function repeatShuffle(input, cards, repeat, position) {
+    let i = 0, currentPosition = position;
+    do {
+        currentPosition = getPosition(input, cards, currentPosition);
+        i++;
+        if (i % 100000 === 0) console.log(i);
+    } while (currentPosition !== position && i < repeat);
+    console.log('Got back to', position, 'after', i, 'iterations');
+}
+console.log(repeatShuffle(input, 119315717514047, 101741582076661, 2020));
+
+
+
+function getReversePosition(input, cards, position) {
+    const steps = input.split('\n');
+    let step;
+    while (step = steps.pop()) {
+        if (step === 'deal into new stack')
+            position = cards - position;
+        else if (step.startsWith('cut')) {
+            const cut = parseInt(step.split(' ')[1]);
+            if (cut >= 0) {
+                if (position < cards - cut) {
+                    position += cut;
+                } else {
+                    position -= (cards - cut)
+                }
+            } else {
+                if (position > -cut) {
+                    position += cut;
+                } else {
+                    position += cards + cut;
+                }
+            }
+        } else if (step.startsWith('deal with increment')) {
+            const increment = parseInt(step.split(' ')[3]);
+            // Find an integer multiple of the increment
+            let result, i = 0;
+            do {
+                result = ((i++ * cards) + position) / increment;
+            } while (result % 1 === 0);
+            position = result;
+            
+            position = position * parseInt(step.split(' ')[3]) % cards;
+        }
+    }
+    return position;
+}
