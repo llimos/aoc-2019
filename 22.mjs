@@ -1,6 +1,9 @@
 function newStack(deck) {
     return deck.reverse();
 }
+function newStackPosition(cards, position) {
+    return cards - position;
+}
 
 function cut(n, deck) {
     if (n >= 0) {
@@ -9,6 +12,13 @@ function cut(n, deck) {
     } else {
         const spliced = deck.splice(n);
         return [...spliced, ...deck];
+    }
+}
+function cutPosition(cut, cards, position) {
+    if (cut >= 0 && position < cut) {
+        return position + (cards - cut);
+    } else {
+        return position - cut;
     }
 }
 
@@ -20,6 +30,9 @@ function deal(increment, deck) {
         newDeck[(next++ * increment) % length] = deck.shift();
     }
     return newDeck;
+}
+function dealPosition(increment, cards, position) {
+    return (position * increment) % cards;
 }
 
 function createDeck(cards) {
@@ -143,7 +156,21 @@ deal with increment 23
 cut -5263
 deal with increment 61
 deal into new stack`;
-console.log(parseAndShuffle(input, createDeck(10007)).indexOf(2019));
+// console.log(parseAndShuffle(input, createDeck(10007)).indexOf(2019));
+// const steps = input.split('\n');
+
+function getPositionFunction(steps, cards) {
+    const stack = steps.map(step => {
+        if (step === 'deal into new stack') {
+            return newStackPosition.bind(undefined, cards);
+        } else if (step.startsWith('cut')) {
+            return cutPosition.bind(undefined, parseInt(step.split(' ')[1]), cards);
+        } else if (step.startsWith('deal with increment')) {
+            return dealPosition.bind(undefined, parseInt(step.split(' ')[3], cards));
+        }
+    });
+    return position => stack.reduce((newPosition, fn) => fn(newPosition), position);
+}
 
 function getPosition(input, cards, position) {
     const steps = input.split('\n');
@@ -174,8 +201,9 @@ function getPosition(input, cards, position) {
 
 function repeatShuffle(input, cards, repeat, position) {
     let i = 0, currentPosition = position;
+    const positionFn = getPositionFunction(input.split('\n'), cards);
     do {
-        currentPosition = getPosition(input, cards, currentPosition);
+        currentPosition = positionFn(input, cards, currentPosition);
         i++;
         if (i % 100000 === 0) console.log(i);
     } while (currentPosition !== position && i < repeat);
