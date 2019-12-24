@@ -172,16 +172,6 @@ function getPosition(input, cards, position) {
     return position;
 }
 
-function repeatShuffle(input, cards, repeat, position) {
-    let i = 0, currentPosition = position;
-    do {
-        currentPosition = getPosition(input, cards, currentPosition);
-        i++;
-        if (i % 100000 === 0) console.log(i);
-    } while (currentPosition !== position && i < repeat);
-    console.log('Got back to', position, 'after', i, 'iterations');
-}
-console.log(repeatShuffle(input, 119315717514047, 101741582076661, 2020));
 
 
 
@@ -208,15 +198,37 @@ function getReversePosition(input, cards, position) {
             }
         } else if (step.startsWith('deal with increment')) {
             const increment = parseInt(step.split(' ')[3]);
+            // Find which round we added it in
+            const placedEachRound = cards / increment;
+            const round = position % increment;
+            const placingsPerRound = Math.floor(cards / increment);
             // Find an integer multiple of the increment
             let result, i = 0;
             do {
                 result = ((i++ * cards) + position) / increment;
-            } while (result % 1 === 0);
+            } while (!Number.isInteger(result));
             position = result;
-            
-            position = position * parseInt(step.split(' ')[3]) % cards;
         }
+        // console.log(step, position, `(-${cards-position})`);
     }
     return position;
 }
+
+
+
+function repeatReverseShuffle(input, cards, repeat, position) {
+    let i = 0, currentPosition = position, prevPosition;
+    do {
+        console.log(i, currentPosition, 'diff', currentPosition - prevPosition, 'ratio', currentPosition / prevPosition);
+        prevPosition = currentPosition;
+        currentPosition = getReversePosition(input, cards, currentPosition);
+        i++;
+        // if (i % 100000 === 0) console.log(i, currentPosition);
+    } while (currentPosition !== position && i < repeat);
+    console.log('Got back to', position, 'after', i, 'iterations');
+}
+console.log(repeatReverseShuffle(input, 119315717514047, 101741582076661, 2020));
+
+
+// It must be we can come up with a formula for the nth term
+// Arithmetic or geometric series?
