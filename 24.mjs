@@ -40,22 +40,22 @@ function getRepeatedRating(input) {
     console.log({grid, rating});
 }
 
-const input = `..#.#
-#####
-.#...
-...#.
-##...`;
-
+// const input = `..#.#
+// #####
+// .#...
+// ...#.
+// ##...`;
+const input = `....#
+#..#.
+#.?##
+..#..
+#....`;
 // getRepeatedRating(input);
 
 
 
 // Part 2
-// Set up 3d grid with the starting one at position 200 since there can't be more than that
-// after 200 steps
-const grid = input.split('\n').map(row => row.split('').map(a => a === '#' ? 1 : 0));
-let system = Array(401);
-system[200] = grid;
+
 function getTop(grid) {
     if (!grid) return 0;
     let total;
@@ -99,20 +99,20 @@ function getRightOfMiddle(grid) {
 function doStep2(system) {
     const newSystem = Array(401);
     system.forEach((level, i) => {
-        const newLevel = Array(5).fill().map(()=>Array(5));
-        const newInnerLevel = Array(5).fill().map(()=>Array(5));
-        const newOuterLevel = Array(5).fill().map(()=>Array(5));
+        const newLevel = Array(5).fill().map(()=>Array(5).fill(0));
+        const newInnerLevel = Array(5).fill().map(()=>Array(5).fill(0));
+        const newOuterLevel = Array(5).fill().map(()=>Array(5).fill(0));
         const inner = system[i+1];
-        const outer = system[outer];
+        const outer = system[i-1];
         level.forEach((row, y) => {
             let yAdj = 0;
-            if (y === 0) yAdj += getAboveMiddle(i-1);
-            else if (y === 4) yAdj += getBelowMiddle(i-1);
+            if (y === 0) yAdj += getAboveMiddle(outer);
+            else if (y === 4) yAdj += getBelowMiddle(outer);
             row.forEach((cell, x) => {
-                if (y === 2 && x === 2) continue;
+                if (y === 2 && x === 2) return;
                 let adj = yAdj;
-                if (x === 0) adj += getLeftOfMiddle(i-1);
-                else if (x === 4) adj += getRightOfMiddle(i-1);
+                if (x === 0) adj += getLeftOfMiddle(outer);
+                else if (x === 4) adj += getRightOfMiddle(outer);
                 else if (y === 1 && x === 2) adj += getTop(inner);
                 else if (y === 3 && x === 2) adj += getBottom(inner);
                 else if (y === 2 && x === 1) adj += getLeft(inner);
@@ -120,9 +120,9 @@ function doStep2(system) {
                 // Local adj
                 adj += (grid[y-1] && grid[y-1][x] || 0) + (grid[y+1] && grid[y+1][x] || 0) + (grid[y][x-1] || 0) + (grid[y][x+1] || 0);
                 if (adj === 1 || (adj === 2 && !cell)) {
-                    newGrid[y][x] = 1;
+                    newLevel[y][x] = 1;
                 } else {
-                    newGrid[y][x] = 0;
+                    newLevel[y][x] = 0;
                 }
             })
         });
@@ -130,41 +130,41 @@ function doStep2(system) {
         let newOuter = false, newInner = false;
         if (!outer) {
             // Only create if exactly 1 or 2 adjacent
-            const top = getTop(newGrid);
+            const top = getTop(newLevel);
             if (top === 1 || top === 2) {
                 newOuterLevel[1][2] = 1;
                 newOuter = true;
             }
-            const bottom = getBottom(newGrid);
+            const bottom = getBottom(newLevel);
             if (bottom === 1 || bottom === 2) {
                 newOuterLevel[3][2] = 1;
                 newOuter = true;
             }
-            const left = getLeft(newGrid)
+            const left = getLeft(newLevel)
             if (left === 1 || left === 2) {
                 newOuterLevel[2][1] = 1;
                 newOuter = true;
             }
-            const right = getRight(newGrid);
+            const right = getRight(newLevel);
             if (right === 1 || right === 2) {
                 newOuterLevel[2][3] = 1;
                 newOuter = true;
             }
         }
         if (!inner) {
-            if (newGrid[1][2] === 1 || newGrid[1][2] === 2) {
+            if (newLevel[1][2] === 1 || newLevel[1][2] === 2) {
                 let i=0; while (i<5) newInnerLevel[0][i++] = 1;
                 newInner = true;
             }
-            if (newGrid[3][2] === 1 || newGrid[3][2] === 2) {
+            if (newLevel[3][2] === 1 || newLevel[3][2] === 2) {
                 let i=0; while (i<5) newInnerLevel[4][i] = 1;
                 newInner = true;
             }
-            if (newGrid[2][1] === 1 || newGrid[2][1] === 2) {
+            if (newLevel[2][1] === 1 || newLevel[2][1] === 2) {
                 let i=0; while (i<5) newInnerLevel[i][0] = 1;
                 newInner = true;
             }
-            if (newGrid[2][3] === 1 || newGrid[2][3] === 2) {
+            if (newLevel[2][3] === 1 || newLevel[2][3] === 2) {
                 let i=0; while (i<5) newInnerLevel[i][4] = 1;
                 newInner = true;
             }
@@ -172,13 +172,22 @@ function doStep2(system) {
         // See if this one should be kept or deleted
         let hasBugs = false;
         for (let i=0; i<5; i++) for (let j=0; j<5; j++) {
-            if (newGrid[i][j]) {
+            if (newLevel[i][j]) {
                 hasBugs = true;
                 break;
             }
         }
-        if (hasBugs) newSystem[i] = newGrid;
+        if (hasBugs) newSystem[i] = newLevel;
         if (newInner) newSystem[i+1] = newInnerLevel;
         if (newOuter) newSystem[i-1] = newOuterLevel;
     });
+    return newSystem;
 }
+
+// Set up 3d grid with the starting one at position 200 since there can't be more than that
+// after 200 steps
+const grid = input.split('\n').map(row => row.split('').map(a => a === '#' ? 1 : 0));
+let system = Array(401);
+system[200] = grid;
+let i=0; while (i++<10) system = doStep2(system);
+console.log(system);
