@@ -115,7 +115,13 @@ function doStep2(system) {
                 else if (y === 2 && x === 1) adj += getLeft(i+1);
                 else if (y === 2 && x === 3) adj += getRight(i+1);
                 // Local adj
-                adj += (grid[y-1] && grid[y-1][x] ? 1 : 0) + (grid[y+1] && grid[y+1][x] ? 1 : 0) + (grid[y][x-1] ? 1 : 0) + (grid[y][x+1] ? 1 : 0);
+                adj += (grid[y-1] && grid[y-1][x] || 0) + (grid[y+1] && grid[y+1][x] || 0) + (grid[y][x-1] || 0) + (grid[y][x+1] || 0);
+                if (adj === 1 || adj === 2 && !grid[y][x]) {
+                    newGrid[y][x] = true;
+                    rating += 2 ** ((5 * y) + x);
+                } else {
+                    newGrid[y][x] = false;
+                }
             })
         })
     });
