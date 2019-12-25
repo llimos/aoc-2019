@@ -4,9 +4,9 @@ const intcode = [109,4816,21101,0,3124,1,21102,13,1,0,1105,1,1424,21101,166,0,1,
 const computer = new AsciiComputer(intcode);
 
 if (process.stdout._handle) process.stdout._handle.setBlocking(false);
-console.log(computer.run().value);
+process.stdout.write(computer.run().value);
 process.stdin.setEncoding('ascii').on('data', data => {
-    const {value, done} = computer.run(data.replace('\r\n', '\n'));
-    console.log(value);
+    const {value, done} = computer.run(data.replace('\r\n', '\n').replace('\r', '\n'));
+    process.stdout.write(value);
     if (done) process.exit();
 });
