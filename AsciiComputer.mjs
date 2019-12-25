@@ -29,7 +29,7 @@ export default class AsciiComputer extends IntcodeComputer {
     }
 
     push(output) {
-        return super.push(String.fromCharCode(output));
+        return super.push(output ? String.fromCharCode(output) : output);
     }
     
 }
