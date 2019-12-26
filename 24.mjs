@@ -40,16 +40,16 @@ function getRepeatedRating(input) {
     console.log({grid, rating});
 }
 
-// const input = `..#.#
-// #####
-// .#...
-// ...#.
-// ##...`;
-const input = `....#
-#..#.
-#.?##
-..#..
-#....`;
+const input = `..#.#
+#####
+.#...
+...#.
+##...`;
+// const input = `....#
+// #..#.
+// #.?##
+// ..#..
+// #....`;
 // getRepeatedRating(input);
 
 
@@ -96,14 +96,15 @@ function getRightOfMiddle(grid) {
     if (!grid) return 0;
     return grid[2][3] || 0;
 }
+
 function doStep2(system) {
-    const newSystem = Array(401);
+    const newSystem = [];
+    // Add one more level at top and bottom, to grow into
+    system.unshift(Array(5).fill().map(()=>Array(5).fill(0)));
+    system.push(Array(5).fill().map(()=>Array(5).fill(0)));
     system.forEach((level, i) => {
-        // console.log('Level', i)
         let hasBugs = false;
         const newLevel = Array(5).fill().map(()=>Array(5).fill(0));
-        const newInnerLevel = Array(5).fill().map(()=>Array(5).fill(0));
-        const newOuterLevel = Array(5).fill().map(()=>Array(5).fill(0));
         const inner = system[i+1];
         const outer = system[i-1];
         level.forEach((row, y) => {
@@ -122,7 +123,7 @@ function doStep2(system) {
                 else if (y === 2 && x === 1) adj += getLeft(inner);
                 else if (y === 2 && x === 3) adj += getRight(inner);
                 // Local adj
-                adj += (grid[y-1] && grid[y-1][x] || 0) + (grid[y+1] && grid[y+1][x] || 0) + (grid[y][x-1] || 0) + (grid[y][x+1] || 0);
+                adj += (level[y-1] && level[y-1][x] || 0) + (level[y+1] && level[y+1][x] || 0) + (level[y][x-1] || 0) + (level[y][x+1] || 0);
                 if (adj === 1 || (adj === 2 && !cell)) {
                     newLevel[y][x] = 1;
                     hasBugs = true;
@@ -131,64 +132,21 @@ function doStep2(system) {
                 }
             })
         });
-        // Check for creating a new level
-        let newOuter = false, newInner = false;
-        // console.log('outer')
-        if (!outer) {
-            // Only create if exactly 1 or 2 adjacent
-            const top = getTop(newLevel);
-            if (top === 1 || top === 2) {
-                newOuterLevel[1][2] = 1;
-                newOuter = true;
-            }
-            const bottom = getBottom(newLevel);
-            if (bottom === 1 || bottom === 2) {
-                newOuterLevel[3][2] = 1;
-                newOuter = true;
-            }
-            const left = getLeft(newLevel)
-            if (left === 1 || left === 2) {
-                newOuterLevel[2][1] = 1;
-                newOuter = true;
-            }
-            const right = getRight(newLevel);
-            if (right === 1 || right === 2) {
-                newOuterLevel[2][3] = 1;
-                newOuter = true;
-            }
+        if (hasBugs || (newSystem.length > 0 && i < system.length - 1)) {
+            newSystem.push(newLevel);
         }
-        // console.log('inner')
-        if (!inner) {
-            if (newLevel[1][2] === 1 || newLevel[1][2] === 2) {
-                let i=0; while (i<5) newInnerLevel[0][i++] = 1;
-                newInner = true;
-            }
-            if (newLevel[3][2] === 1 || newLevel[3][2] === 2) {
-                let i=0; while (i<5) newInnerLevel[4][i++] = 1;
-                newInner = true;
-            }
-            if (newLevel[2][1] === 1 || newLevel[2][1] === 2) {
-                let i=0; while (i<5) newInnerLevel[i++][0] = 1;
-                newInner = true;
-            }
-            if (newLevel[2][3] === 1 || newLevel[2][3] === 2) {
-                let i=0; while (i<5) newInnerLevel[i++][4] = 1;
-                newInner = true;
-            }
-        }
-        if (hasBugs) newSystem[i] = newLevel;
-        if (newInner) newSystem[i+1] = newInnerLevel;
-        if (newOuter) newSystem[i-1] = newOuterLevel;
     });
     return newSystem;
 }
 
 // Set up 3d grid with the starting one at position 200 since there can't be more than that
 // after 200 steps
-const grid = input.split('\n').map(row => row.split('').map(a => a === '#' ? 1 : 0));
-let system = Array(401);
-system[200] = grid;
+let system = [input.split('\n').map(row => row.split('').map(a => a === '#' ? 1 : 0))];
+// console.log(system);
 // console.log(doStep2(system));
 
-let i=0; while (i++<10) system = doStep2(system);
+let i=0; while (i++<200) system = doStep2(system);
 console.log(system);
+let total = 0;
+for (const level of system) for (const row of level) for (const cell of row) total += cell;
+console.log(total);
